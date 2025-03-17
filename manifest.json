@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "ADK URL Parameters Manager",
+  "description": "Add and manage URL parameters across all pages",
+  "version": "1.1",
+  "permissions": [
+    "storage",
+    "webNavigation",
+    "activeTab"
+  ],
+  "action": {
+    "default_popup": "popup/popup.html"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  }
+}

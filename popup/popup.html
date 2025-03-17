@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>AdK URL Parameters Manager</h1>
+      <label class="switch">
+        <input type="checkbox" id="extensionToggle">
+        <span class="slider round"></span>
+      </label>
+    </div>
+    
+    <div class="parameters-list" id="parametersList">
+      <!-- I parametri verranno inseriti qui dinamicamente -->
+    </div>
+
+    <div class="add-parameter">
+      <input type="text" id="paramName" placeholder="Nome parametro">
+      <input type="text" id="paramValue" placeholder="Valore">
+      <button id="addParam">Aggiungi</button>
+      <button id="reloadBtn">Ricarica Pagina</button>
+    </div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

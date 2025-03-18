@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "ADK URL Parameters Manager",
   "description": "Add and manage URL parameters across all pages",
-  "version": "1.1",
+  "version": "1.2",
   "permissions": [
     "storage",
     "tabs"

@@ -33,12 +33,6 @@ async function saveState() {
     isActive: state.isActive,
     parameters: state.parameters
   });
-  
-  // Notifica il background script del cambio di stato
-  chrome.runtime.sendMessage({
-    type: 'stateChanged',
-    state: state
-  });
 }
 
 // Rendering dei parametri
@@ -111,9 +105,49 @@ async function addParameter() {
   renderParameters();
 }
 
+// Ricarica la pagina con i parametri attivi
 async function reloadWebpage() {
-  await saveState();
-  chrome.runtime.sendMessage({ type: 'reloadPage' });
+  try {
+    await saveState();
+    
+    // Ottieni la scheda corrente
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tabs || tabs.length === 0) return;
+    
+    const tab = tabs[0];
+    let url;
+    
+    try {
+      url = new URL(tab.url);
+    } catch (e) {
+      console.error('Invalid URL:', tab.url);
+      return;
+    }
+
+    if (state.isActive) {
+      const activeParams = state.parameters.filter(p => p.active);
+      
+      // Rimuovi tutti i parametri gestiti dall'estensione
+      state.parameters.forEach(param => {
+        url.searchParams.delete(param.name);
+      });
+
+      // Aggiungi solo i parametri attivi
+      activeParams.forEach(param => {
+        url.searchParams.set(param.name, param.value);
+      });
+    } else {
+      // Se l'estensione non è attiva, rimuovi tutti i parametri gestiti
+      state.parameters.forEach(param => {
+        url.searchParams.delete(param.name);
+      });
+    }
+
+    // Aggiorna l'URL della scheda
+    await chrome.tabs.update(tab.id, { url: url.toString() });
+  } catch (error) {
+    console.error('Error reloading page:', error);
+  }
 }
 
 // Toggle dello stato attivo di un parametro

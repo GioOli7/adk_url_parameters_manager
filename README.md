@@ -10,30 +10,31 @@ ADK URL Parameters Manager è un'estensione Chrome che permette di gestire e man
 - Gestione individuale dei parametri
 - Persistenza delle configurazioni
 - Modifica automatica degli URL durante la navigazione
+- Compatibilità completa con la modalità incognito
 
 ### Permessi Richiesti
 - `storage`: Per la persistenza delle configurazioni
-- `webNavigation`: Per intercettare e modificare la navigazione
-- `activeTab`: Per interagire con il tab attivo
+- `tabs`: Per interagire con le schede
+- `host_permissions` per `<all_urls>`: Per accedere al contenuto di tutte le pagine web
 
 ### Struttura del Progetto
 ```
-├── manifest.json       # Configurazione dell'estensione
-├── background.js      # Service worker background
+├── manifest.json      # Configurazione dell'estensione
+├── content.js         # Content script per la gestione degli URL
 ├── popup/
-│   ├── popup.html    # UI dell'estensione
-│   ├── popup.js      # Logica del popup
-│   └── popup.css     # Stili dell'interfaccia
+│   ├── popup.html     # UI dell'estensione
+│   ├── popup.js       # Logica del popup
+│   └── popup.css      # Stili dell'interfaccia
 ```
 
 ## Architettura
 
-### Service Worker (background.js)
-Il service worker gestisce:
-- Mantenimento dello stato globale dell'estensione
-- Intercettazione della navigazione web
+### Content Script (content.js)
+Il content script gestisce:
 - Modifica degli URL in base ai parametri configurati
-- Comunicazione con il popup
+- Ascolto dei cambiamenti nello storage
+- Supporto per le applicazioni a pagina singola (SPA)
+- Aggiunta non intrusiva dei parametri tramite history.replaceState
 
 ### Popup UI
 L'interfaccia utente è composta da:
@@ -58,28 +59,41 @@ Lo stato dell'estensione è strutturato come:
 ```
 
 ### Comunicazione tra Componenti
-- Il popup comunica con il background script tramite `chrome.runtime.sendMessage`
-- Il background script mantiene lo stato aggiornato e gestisce la logica di modifica URL
-- Lo stato viene sincronizzato tra popup e background script ad ogni modifica
+- Il popup gestisce direttamente le modifiche dello stato tramite chrome.storage.local
+- Il content script reagisce ai cambiamenti nello storage tramite chrome.storage.onChanged
+- Entrambi i componenti operano in modo indipendente ma sincronizzato tramite lo storage condiviso
 
 ## Funzionalità Core
 
 ### Gestione dei Parametri URL
 ```javascript
-async function modifyUrl(url, parameters) {
-  const urlObj = new URL(url);
-  parameters.forEach(param => {
-    if (!urlObj.searchParams.has(param.name)) {
-      urlObj.searchParams.set(param.name, param.value);
+function checkAndModifyUrl() {
+  chrome.storage.local.get(['isActive', 'parameters'], (result) => {
+    if (!result.isActive) return;
+    
+    const activeParams = (result.parameters || []).filter(p => p.active);
+    if (activeParams.length === 0) return;
+    
+    const url = new URL(window.location.href);
+    let modified = false;
+    
+    activeParams.forEach(param => {
+      if (!url.searchParams.has(param.name)) {
+        url.searchParams.set(param.name, param.value);
+        modified = true;
+      }
+    });
+    
+    if (modified) {
+      window.history.replaceState({}, document.title, url.toString());
     }
   });
-  return urlObj.toString();
 }
 ```
 
 ### Persistenza dei Dati
 - Utilizzo di `chrome.storage.local` per la persistenza
-- Sincronizzazione automatica tra componenti
+- Sincronizzazione automatica tra componenti tramite `chrome.storage.onChanged`
 - Caricamento dello stato all'avvio dell'estensione
 
 ### Sistema di Attivazione/Disattivazione
@@ -88,7 +102,8 @@ async function modifyUrl(url, parameters) {
 - Persistenza dello stato di attivazione
 
 ### Gestione della Navigazione
-- Intercettazione degli eventi di navigazione
+- Monitoraggio dei cambiamenti di URL
+- Supporto nativo per le applicazioni a pagina singola (SPA)
 - Applicazione automatica dei parametri attivi
 - Gestione degli errori e casi edge
 
@@ -123,9 +138,9 @@ async function modifyUrl(url, parameters) {
 
 ### API Chrome Utilizzate
 - `chrome.storage.local`
-- `chrome.webNavigation`
+- `chrome.storage.onChanged`
 - `chrome.tabs`
-- `chrome.runtime`
+- `window.history.replaceState`
 
 ### Gestione dello Storage
 ```javascript
@@ -147,6 +162,15 @@ async function loadState() {
 }
 ```
 
+## Compatibilità con Modalità Incognito
+
+L'estensione è stata progettata per funzionare in modo affidabile sia in modalità normale che in modalità incognito:
+
+- Utilizzo di content script invece di background script
+- Accesso minimo alle API sensibili
+- Gestione robusta degli errori
+- Supporto per `"incognito": "spanning"` nel manifest
+
 ## Best Practices & Pattern
 
 ### Gestione degli Errori
@@ -155,19 +179,13 @@ async function loadState() {
 - Logging degli errori
 - Feedback utente appropriato
 
-### Pattern di Comunicazione
-- Utilizzo di eventi per la comunicazione asincrona
-- Sincronizzazione dello stato tra componenti
-- Pattern pub/sub per gli aggiornamenti
+### Pattern di Reattività
+- Ascolto dei cambiamenti nello storage
+- Reazione automatica alle modifiche dello stato
+- Modifica non intrusiva dell'URL tramite l'API History
 
 ### Convenzioni di Codice
 - Funzioni asincrone per operazioni I/O
 - Separazione della logica UI dalla business logic
 - Gestione centralizzata dello stato
 - Naming consistente e descrittivo
-
-## Sviluppi Futuri
-- Importazione/esportazione delle configurazioni
-- Gruppi di parametri
-- Template predefiniti
-- Supporto per regex nei valori dei parametri
